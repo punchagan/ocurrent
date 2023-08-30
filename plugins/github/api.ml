@@ -587,7 +587,7 @@ module Refs = Monitor(struct
       defaultBranchRef {
         name
       }
-      refs(first: 100, refPrefix:"refs/heads/", orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
+      refs(first: 100, refPrefix:"refs/heads/", orderBy: {field: ALPHABETICAL, direction: ASC}) {
         totalCount
         edges {
           node {
