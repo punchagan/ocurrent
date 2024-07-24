@@ -389,6 +389,15 @@ module Process : sig
     string or_error Lwt.t
   (** Like [exec], but return the child's stdout as a string rather than writing it to the log. *)
 
+  val capture_output :
+    ?cwd:Fpath.t -> ?stdin:string ->
+    ?pp_cmd:(Format.formatter -> Lwt_process.command -> unit) ->
+    ?pp_error_command:(Format.formatter -> unit) ->
+    cancellable:bool ->
+    job:Job.t -> Lwt_process.command ->
+    string or_error Lwt.t
+  (** Like [check_output], but return the child's stdout in the error message even when the child exits with a failure. *)
+
   val with_tmpdir : ?prefix:string -> (Fpath.t -> 'a Lwt.t) -> 'a Lwt.t
   (** [with_tmpdir fn] creates a temporary directory, runs [fn tmpdir], and then deletes the directory
       (recursively).

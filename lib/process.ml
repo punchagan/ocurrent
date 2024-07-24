@@ -170,3 +170,28 @@ let check_output ?cwd ?(stdin="") ?(pp_cmd = pp_cmd) ?pp_error_command ~cancella
     | Error _ as e -> e
     | Ok () ->
       Ok stdout
+
+let capture_output ?cwd ?(stdin="") ?(pp_cmd = pp_cmd) ?pp_error_command ~cancellable ~job cmd =
+  let cwd = Option.map Fpath.to_string cwd in
+  let pp_error_command = Option.value pp_error_command ~default:(pp_command pp_cmd cmd) in
+  Log.info (fun f -> f "Exec: @[%a@]" pp_cmd cmd);
+  Job.log job "Exec: @[%a@]" pp_cmd cmd;
+  let proc = Lwt_process.open_process_full ?cwd cmd in
+  let copy_thread = copy_to_log ~job proc#stderr in
+  add_shutdown_hooks ~cancellable ~job ~cmd proc >>= fun () ->
+  let reader = Lwt_io.read proc#stdout in
+  send_to proc#stdin stdin >>= fun stdin_result ->
+  reader >>= fun stdout ->
+  copy_thread >>= fun () -> (* Ensure all data has been copied before returning *)
+  proc#status >|= fun status ->
+  let stdout = match stdin_result with
+    | Error (`Msg e) -> Printf.sprintf "%s\n%s" stdout e
+    | Ok () -> stdout
+  in
+  match check_status pp_error_command cmd status, stdin_result with
+  | Error (`Msg e), Error (`Msg f) ->
+    Error (`Msg (Printf.sprintf "%s\n%s\n%s" stdout f e))
+  | Error (`Msg e), Ok ()
+  | Ok (), Error (`Msg e) ->
+    Error (`Msg (Printf.sprintf "%s\n%s" stdout e))
+  | Ok (), Ok () -> Ok stdout
